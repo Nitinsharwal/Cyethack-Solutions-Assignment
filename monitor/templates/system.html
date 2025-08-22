@@ -1,0 +1,35 @@
+{% extends "index.html" %}
+
+{% block body %}
+<h2>System Details</h2>
+<table border="1" cellpadding="6">
+  <tr><th>CPU %</th><td id="cpu"></td></tr>
+  <tr><th>Memory Total</th><td id="mem_total"></td></tr>
+  <tr><th>Memory Used</th><td id="mem_used"></td></tr>
+  <tr><th>Memory Available</th><td id="mem_avail"></td></tr>
+  <tr><th>Memory %</th><td id="mem_percent"></td></tr>
+  <tr><th>Disk Total</th><td id="disk_total"></td></tr>
+  <tr><th>Disk Used</th><td id="disk_used"></td></tr>
+  <tr><th>Disk Free</th><td id="disk_free"></td></tr>
+  <tr><th>Disk %</th><td id="disk_percent"></td></tr>
+  <tr><th>Boot Time</th><td id="boot"></td></tr>
+</table>
+
+<script>
+  fetch("/system/my-host/")
+    .then(resp => resp.json())
+    .then(data => {
+      document.getElementById("cpu").innerText = data.cpu_percent + "%";
+      document.getElementById("mem_total").innerText = data.memory_total;
+      document.getElementById("mem_used").innerText = data.memory_used;
+      document.getElementById("mem_avail").innerText = data.memory_available;
+      document.getElementById("mem_percent").innerText = data.memory_percent + "%";
+      document.getElementById("disk_total").innerText = data.disk_total;
+      document.getElementById("disk_used").innerText = data.disk_used;
+      document.getElementById("disk_free").innerText = data.disk_free;
+      document.getElementById("disk_percent").innerText = data.disk_percent + "%";
+      document.getElementById("boot").innerText = data.boot_time;
+    });
+</script>
+
+{% endblock body %}

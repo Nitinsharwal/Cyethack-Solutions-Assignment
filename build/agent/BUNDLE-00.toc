@@ -1,0 +1,3 @@
+([('agent',
+   '/Users/nitinsharwal/Desktop/Django Rest Fraework/Eyth Ass/dist/agent',
+   'EXECUTABLE')],)

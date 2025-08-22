@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Process Monitor</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Helvetica, Arial; margin: 20px; }
+    h1 { margin-bottom: 20px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 15px; }
+    select, button { padding:8px 10px; }
+    .timestamp { opacity:.7; }
+
+    /* Table styles */
+    table { width:100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { padding:8px 12px; border:1px solid #ddd; text-align:left; }
+    th { background:#f5f5f5; }
+    tr:nth-child(even) { background:#fafafa; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    /* Tabs */
+    .tabs { display:flex; border-bottom:2px solid #ddd; margin-bottom:15px; }
+    .tab { padding:10px 20px; cursor:pointer; }
+    .tab.active { border-bottom:3px solid #007bff; font-weight:bold; color:#007bff; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+
+    /* System details boxes */
+    .sys-box { border:1px solid #ddd; border-radius:6px; padding:12px; margin-bottom:12px; background:#fafafa; }
+    .sys-box h3 { margin:0 0 6px 0; font-size:16px; }
+    .sys-box p { margin:2px 0; font-size:14px; }
+  </style>
+</head>
+<body>
+  <h1>Process Monitor</h1>
+
+  <div class="row">
+    <label>Host:</label>
+    <select id="hostSelect"></select>
+    <button id="refreshBtn">Refresh</button>
+    <span id="ts" class="timestamp"></span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="processes">Processes</div>
+    <div class="tab" data-tab="system">System Details</div>
+  </div>
+
+  <!-- Tab contents -->
+  <div id="processes" class="tab-content active">
+    <div id="tableContainer"></div>
+  </div>
+
+  <div id="system" class="tab-content">
+    <div id="systemContainer"></div>
+  </div>
+
+  <script>
+    const hostSel = document.getElementById('hostSelect');
+    const ts = document.getElementById('ts');
+    const tableContainer = document.getElementById('tableContainer');
+    const systemContainer = document.getElementById('systemContainer');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    // ---------- Tab Handling ----------
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    async function fetchHosts() {
+      const res = await fetch('/api/hosts/');
+      const hosts = await res.json();
+      hostSel.innerHTML = hosts.map(h => `<option value="${h.hostname}">${h.hostname}</option>`).join('');
+    }
+
+    // ---------- Build Process Table ----------
+    function buildTable(processes) {
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th>PID</th>
+              <th>Parent PID</th>
+              <th>Name</th>
+              <th>CPU %</th>
+              <th>Memory (MB)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${processes.map(p => `
+              <tr>
+                <td class="mono">${p.pid}</td>
+                <td class="mono">${p.ppid}</td>
+                <td class="mono">${p.name}</td>
+                <td>${p.cpu_percent != null ? p.cpu_percent.toFixed(1) : '-'}</td>
+                <td>${p.mem_rss != null ? (p.mem_rss/1048576).toFixed(1) : '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      tableContainer.innerHTML = html;
+    }
+
+    // ---------- Build System Details ----------
+    function buildSystemDetails(sys) {
+      let html = `
+        <div class="sys-box">
+          <h3>CPU</h3>
+          <p>Usage: ${sys.cpu_percent.toFixed(1)}%</p>
+        </div>
+        <div class="sys-box">
+          <h3>Memory</h3>
+          <p>Total: ${(sys.memory_total/1048576/1024).toFixed(2)} GB</p>
+          <p>Used: ${(sys.memory_used/1048576/1024).toFixed(2)} GB</p>
+          <p>Available: ${(sys.memory_available/1048576/1024).toFixed(2)} GB</p>
+          <p>Usage: ${sys.memory_percent.toFixed(1)}%</p>
+        </div>
+        <div class="sys-box">
+          <h3>Disk</h3>
+          <p>Total: ${(sys.disk_total/1048576/1024).toFixed(2)} GB</p>
+          <p>Used: ${(sys.disk_used/1048576/1024).toFixed(2)} GB</p>
+          <p>Free: ${(sys.disk_free/1048576/1024).toFixed(2)} GB</p>
+          <p>Usage: ${sys.disk_percent.toFixed(1)}%</p>
+        </div>
+        <div class="sys-box">
+          <h3>Boot Time</h3>
+          <p>${new Date(sys.boot_time).toLocaleString()}</p>
+        </div>
+      `;
+      systemContainer.innerHTML = html;
+    }
+
+    // ---------- Load Latest Data ----------
+    async function loadLatest() {
+      const host = hostSel.value;
+      if (!host) return;
+
+      // Processes
+      const res = await fetch(`/api/latest/${encodeURIComponent(host)}/`);
+      if (!res.ok) { 
+        tableContainer.innerHTML = '<p>No data for this host.</p>'; 
+        ts.textContent=''; 
+        return; 
+      }
+      const data = await res.json();
+      ts.textContent = `Latest: ${new Date(data.captured_at).toLocaleString()} — Host: ${data.host}`;
+      buildTable(data.processes);
+
+      // System Details
+      const sysRes = await fetch(`/api/system/${encodeURIComponent(host)}/`);
+      if (sysRes.ok) {
+        const sysData = await sysRes.json();
+        buildSystemDetails(sysData);
+      } else {
+        systemContainer.innerHTML = '<p>No system details available.</p>';
+      }
+    }
+
+    refreshBtn.addEventListener('click', loadLatest);
+
+    (async function init() {
+      await fetchHosts();
+      await loadLatest();
+      setInterval(loadLatest, 15000); // auto-refresh
+    })();
+  </script>
+</body>
+</html>
