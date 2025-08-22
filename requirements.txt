@@ -1,0 +1,16 @@
+altgraph==0.17.4
+asgiref==3.9.1
+certifi==2025.8.3
+charset-normalizer==3.4.3
+Django==5.2.5
+djangorestframework==3.16.1
+idna==3.10
+macholib==1.16.3
+packaging==25.0
+psutil==7.0.0
+pyinstaller==6.15.0
+pyinstaller-hooks-contrib==2025.8
+requests==2.32.5
+setuptools==80.9.0
+sqlparse==0.5.3
+urllib3==2.5.0
